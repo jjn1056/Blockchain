@@ -11,8 +11,8 @@ use Catalyst qw/
 /;
 
 __PACKAGE__->inject_components(
-  'Model::KeyPair' => {
-    from_class=>'BlockchainClient::KeyPair', 
+  'Model::Wallet' => {
+    from_class=>'BlockchainClient::Wallet', 
     adaptor=>'Factory', 
   },
   'Model::Transaction' => {
