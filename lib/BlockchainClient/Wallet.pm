@@ -1,4 +1,4 @@
-package BlockchainClient::KeyPair;
+package BlockchainClient::Wallet;
 
 use Crypt::Misc 'encode_b32b';
 use Crypt::PK::RSA;
@@ -15,6 +15,7 @@ has key_pair => (
     return $pk->generate_key;
   }
 
+# not sure if this belongs here or in the view...
 sub export_private_key_b32b {
   return encode_b32b(shift->export_key_der('private'));
 }

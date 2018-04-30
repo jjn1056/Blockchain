@@ -23,7 +23,7 @@ sub root($self, $c) : At(/...) { }
   }
 
   sub new_wallet($self, $c) :GET Via(root) At('wallet/new') {
-    my $pk = $c->model('KeyPair');
+    my $pk = $c->model('Wallet');
     return $c->view('WalletKey',
       private_key => $pk->export_private_key_b32b,
       public_key => $pk->export_public_key_b32b,
