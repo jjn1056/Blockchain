@@ -4,7 +4,7 @@ requires 'Catalyst::Plugin::URI', '0.002';
 requires 'Catalyst::Plugin::CurrentComponents', '0.007';
 requires 'Catalyst::Plugin::InjectionHelpers', '0.010';
 requires 'Catalyst::Plugin::ConfigLoader', '0.34';
-requires 'Catalyst::Plugin::ServeFile', '0.002';
+requires 'Catalyst::Plugin::ServeFile', '0.003';
 requires 'Catalyst::TraitFor::Request::ContentNegotiationHelpers', '0.006';
 requires 'Catalyst::View::Base::JSON', '0.003';
 requires 'Catalyst::Model::Data::MuForm', '0.001';

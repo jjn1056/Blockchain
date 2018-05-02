@@ -11,9 +11,10 @@ use Catalyst qw/
 /;
 
 __PACKAGE__->inject_components(
+  'Model::Form' => { from_component => 'Catalyst::Model::Data::MuForm' },
   'Model::Blockchain' => {
     from_class=>'BlockchainNode::Blockchain', 
-    adaptor=>'Factory', 
+    adaptor=>'Application', 
   },
 );
 

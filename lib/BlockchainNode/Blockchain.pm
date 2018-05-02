@@ -1,6 +1,14 @@
 package BlockchainNode::Blockchain;
 
-use Moo;
+use Moose;
+
+has 'transactions' =>  ( is=>'ro', required=>1, default=>sub { [] } );
+has 'nodes' =>  ( is=>'ro', required=>1, default=>sub { [] } );
+has 'node_id' =>  ( is=>'ro', required=>1, default=>sub { [] } );
+has 'chain' =>  ( is=>'ro', required=>1, default=>sub { [] } );
+
+__PACKAGE__->meta->make_immutable;
+__END__
 
 has key_pair => (
   is=>'ro',
