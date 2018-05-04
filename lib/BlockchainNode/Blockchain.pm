@@ -1,47 +1,91 @@
 package BlockchainNode::Blockchain;
 
+use signatures;
+use Data::UUID;
+use JSON::MaybeXS;
+use Crypt::Digest::SHA256 'sha256_hex';
+use URL::URI;
+use BlockchainNode::Constants ':all';
 use Moose;
 
-has 'transactions' =>  ( is=>'ro', required=>1, default=>sub { [] } );
-has 'nodes' =>  ( is=>'ro', required=>1, default=>sub { [] } );
-has 'node_id' =>  ( is=>'ro', required=>1, default=>sub { [] } );
-has 'chain' =>  ( is=>'ro', required=>1, default=>sub { [] } );
-
-__PACKAGE__->meta->make_immutable;
-__END__
-
-has key_pair => (
+has 'transactions' =>  (
+  traits  => ['Array'],
   is=>'ro',
   required=>1,
-  handles=>['export_key_der'],
-  builder=>'_build_key_pair');
+  default=>sub { [] }
+  handles => +{
+    transactions_clear => 'clear'
+  },
+);
 
-class Blockchain:
+has 'nodes' =>  (
+  traits  => ['Array'],
+  is=>'ro',
+  required=>1,
+  default=>sub { [] }
+  handles => +{
+    nodes_append => 'add'
+  },
+);
 
-    def __init__(self):
-        
-        self.transactions = []
-        self.chain = []
-        self.nodes = set()
-        #Generate random number to be used as node_id
-        self.node_id = str(uuid4()).replace('-', '')
-        #Create genesis block
-        self.create_block(0, '00')
+has 'node_id' =>  (
+  is => 'ro',
+  required => 1,
+  default => sub {
+    (my $uuid = Data::UUID->new->create_str) =~s/-//g;
+    return $uuid;
+  }
+);
 
+has 'chain' => (
+  traits  => ['Array'],
+  is => 'ro',
+  required => 1,
+  lazy => 1,
+  default=>sub { shift->create_block(0, '00') },
+  handles => +{
+    chain_length => 'count'
+    chain_append => 'add',
+  },
+);
 
-    def register_node(self, node_url):
-        """
-        Add a new node to the list of nodes
-        """
-        #Checking node_url has valid format
-        parsed_url = urlparse(node_url)
-        if parsed_url.netloc:
-            self.nodes.add(parsed_url.netloc)
-        elif parsed_url.path:
-            # Accepts an URL without scheme like '192.168.0.5:5000'.
-            self.nodes.add(parsed_url.path)
-        else:
-            raise ValueError('Invalid URL')
+sub create_block($self, $nounce, $previous_hash) {
+  my $block = +{
+    block_number => $self->chain_length,
+    timestamp => time,
+    transactions => $self->transactions,
+    nonce => $nonce,
+    previous_hash => $previous_hash};
+
+  $self->transactions_clear;
+  $self->chain_append($block);
+
+  return $block;
+}
+
+my $JSON = JSON::MaybeXS->new(utf8 => 1, canonical=>1);
+
+sub hash($self, $block) {
+  # Create a SHA-256 hash of a block
+  my $block_string = $JSON->encode($block);
+  return sha256_hex($block_string);
+
+}
+
+sub register_node($self, $node_url) {
+  # Add a new node to the list of nodes
+  # I'm going to be more strict than the python version, and do
+  # sanity checking on the Catalyst side.
+  my $parsed_url = URI::URL->new($node_url);
+  my $host = $parsed_url->can('host') ?
+    $parsed_url->host :
+      die 'Invalid URL';
+  $self->nodes_append($host);
+}
+
+__PACKAGE__->meta->make_immutable;
+
+__END__
 
 
     def verify_transaction_signature(self, sender_address, signature, transaction):
@@ -77,31 +121,6 @@ class Blockchain:
                 return False
 
 
-    def create_block(self, nonce, previous_hash):
-        """
-        Add a block of transactions to the blockchain
-        """
-        block = {'block_number': len(self.chain) + 1,
-                'timestamp': time(),
-                'transactions': self.transactions,
-                'nonce': nonce,
-                'previous_hash': previous_hash}
-
-        # Reset the current list of transactions
-        self.transactions = []
-
-        self.chain.append(block)
-        return block
-
-
-    def hash(self, block):
-        """
-        Create a SHA-256 hash of a block
-        """
-        # We must make sure that the Dictionary is Ordered, or we'll have inconsistent hashes
-        block_string = json.dumps(block, sort_keys=True).encode()
-        
-        return hashlib.sha256(block_string).hexdigest()
 
 
     def proof_of_work(self):

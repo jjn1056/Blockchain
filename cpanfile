@@ -9,13 +9,14 @@ requires 'Catalyst::TraitFor::Request::ContentNegotiationHelpers', '0.006';
 requires 'Catalyst::View::Base::JSON', '0.003';
 requires 'Catalyst::Model::Data::MuForm', '0.001';
 requires 'Data::MuForm', '0.04';
-requires 'Gazelle', '0.41';
 requires 'Import::Into', '1.002005';
 requires 'Moose', '2.2010'; 
 requires 'Module::Runtime', '0.016';
 requires 'namespace::autoclean', '0.28';
 requires 'Plack', '1.0047';
 requires 'signatures', '0.13';
+requires 'Data::UUID', '1.221';
+requires 'JSON::MaybeXS', '1.004000';
 
 on test => sub {
   requires 'Catalyst::Test';
