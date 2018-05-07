@@ -52,7 +52,7 @@ sub get_nodes($self, $c) : GET At('/nodes/get') {
       ->http_200;
 }
 
-sub consensus($self, $c) : GET At(''/nodes/resolve'') {
+sub consensus($self, $c) : GET At('/nodes/resolve') {
   my $blockchain = $c->model('Blockchain');
   my $replaced = $blockchain->resolve_conflicts;
   if($replaces) {
@@ -68,45 +68,44 @@ sub consensus($self, $c) : GET At(''/nodes/resolve'') {
   }
 }
 
+sub mine($self, $c) : GET At('/mine') {
+  my $blockchain = $c->model('Blockchain');
+  my $last_block = $blockchain->last_block;
+  my $nonce = $blockchain->proof_of_work;
+
+  $blockchain->submit_transaction(
+    sender_address => MINING_SENDER,
+    recipient_address => $blockchain->node_id,
+    value => MINING_REWARD,
+    signature => '');
+
+  my $previous_hash = $blockchain->hash($last_block);
+  my $block = $blockchain->create_block($nonce, $previous_hash);
+
+  return $c->view('Mined',
+    'message': "New Block Forged",
+    'block_number': $block->{'block_number'},
+    'transactions': $block->{'transactions'},
+    'nonce': $block->{'nonce'},
+    'previous_hash': $block->{'previous_hash'},
+  )->http_200;
+}
+
+sub mine($self, $c) : POST At('/nodes/register') {
+  my @new_nodes = $self->model('NewNodes')->as_nodes_array;
+  if(@new_nodes) {
+    foreach $node (@nodes) {
+      $c->model('Blockchain')->register_node($node);
+    }
+    $c->view('NodeRegistered',
+      message => 'New nodes have been added',
+      total_nodes => $c->model('Blockchain')->nodes,
+    )->http_201;
+  } else {
+    $c->res->status(400);
+    $c->res->body('Error: Please supply a valid list of nodes');
+  }
+
+}
+
 __PACKAGE__->meta->make_immutable;
-
-__END__
-
-@app.route('/mine', methods=['GET'])
-def mine():
-    # We run the proof of work algorithm to get the next proof...
-    last_block = blockchain.chain[-1]
-    nonce = blockchain.proof_of_work()
-
-    # We must receive a reward for finding the proof.
-    blockchain.submit_transaction(sender_address=MINING_SENDER, recipient_address=blockchain.node_id, value=MINING_REWARD, signature="")
-
-    # Forge the new Block by adding it to the chain
-    previous_hash = blockchain.hash(last_block)
-    block = blockchain.create_block(nonce, previous_hash)
-
-    response = {
-        'message': "New Block Forged",
-        'block_number': block['block_number'],
-        'transactions': block['transactions'],
-        'nonce': block['nonce'],
-        'previous_hash': block['previous_hash'],
-    }
-    return jsonify(response), 200
-
-@app.route('/nodes/register', methods=['POST'])
-def register_nodes():
-    values = request.form
-    nodes = values.get('nodes').replace(" ", "").split(',')
-
-    if nodes is None:
-        return "Error: Please supply a valid list of nodes", 400
-
-    for node in nodes:
-        blockchain.register_node(node)
-
-    response = {
-        'message': 'New nodes have been added',
-        'total_nodes': [node for node in blockchain.nodes],
-    }
-    return jsonify(response), 201

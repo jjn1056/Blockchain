@@ -1,11 +1,13 @@
 package BlockchainNode::Blockchain;
 
 use signatures;
-use Data::UUID;
 use JSON::MaybeXS;
+use Crypt::Misc 'random_v4uuid';
 use Crypt::Digest::SHA256 'sha256_hex';
+use Crypt::Digest::SHA1 'sha1';
 use URL::URI;
 use BlockchainNode::Constants ':all';
+use Data::Dumper;
 use Moose;
 
 has 'transactions' =>  (
@@ -14,7 +16,8 @@ has 'transactions' =>  (
   required=>1,
   default=>sub { [] }
   handles => +{
-    transactions_clear => 'clear'
+    transactions_clear => 'clear',
+    transactions_append => 'add',
   },
 );
 
@@ -32,7 +35,7 @@ has 'node_id' =>  (
   is => 'ro',
   required => 1,
   default => sub {
-    (my $uuid = Data::UUID->new->create_str) =~s/-//g;
+    (my $uuid = random_v4uuid) =~s/-//g;
     return $uuid;
   }
 );
@@ -46,8 +49,12 @@ has 'chain' => (
   handles => +{
     chain_length => 'count'
     chain_append => 'add',
+    chain_get => 'get',
   },
 );
+
+  sub chain_last { shift->chain_get(-1) }
+  *last_block \&chain_last; # alias for clarity
 
 sub create_block($self, $nounce, $previous_hash) {
   my $block = +{
@@ -55,7 +62,7 @@ sub create_block($self, $nounce, $previous_hash) {
     timestamp => time,
     transactions => $self->transactions,
     nonce => $nonce,
-    previous_hash => $previous_hash};
+    previous_hash => $previous_hash}; # Should this be ordered hash...?
 
   $self->transactions_clear;
   $self->chain_append($block);
@@ -63,6 +70,9 @@ sub create_block($self, $nounce, $previous_hash) {
   return $block;
 }
 
+# This creates a JSON encoder that forces keys to be
+# alphabetically ordered.  Necessary because for the hashes
+# to be correct the underlying string can't change.
 my $JSON = JSON::MaybeXS->new(utf8 => 1, canonical=>1);
 
 sub hash($self, $block) {
@@ -83,68 +93,58 @@ sub register_node($self, $node_url) {
   $self->nodes_append($host);
 }
 
+sub verify_transaction_signature($self, $sender_address, $signature, $transaction) {
+  my $sender_public_key = decode_b32b($sender_address);
+  my $public_key = Crypt::PK::RSA->new(\$sender_public_key);
+  my $message = sha1(Dumper @{$transaction}); # Need to take care about not using a Hash
+  return $public_key->verify_message(decode_b32b($signature), $message)
+}
+
+sub submit_transaction($self, %t) {
+  # Please note this returns an arrayref because Perl hashes are not
+  # going to preserve key order.
+  my $transaction = [
+    sender_address => $t{sender_address}, 
+    recipient_address => $t{recipient_address}, 
+    value => $t{value}, 
+    signature => $t{signature},
+  ];
+
+  if($t{sender_address} eq MINING_SENDER) {
+    $self->transactions_append($transaction);
+    return $self->chain_length +1;
+  } else {
+    my $transaction_verification = $self->verify_transaction_signature($t{sender_address}, $t{signature}, $t{transaction});
+    if($transaction_verification) {
+      $self->transactions_append($transaction);
+      return $self->chain_length +1;
+    } else {
+      return undef;
+    }
+  }
+}
+
+sub proof_of_work($self) {
+  my $last_block = $self->chain_last;
+  my $last_hash = $self->hash($last_block);
+  my $nonce = 0;
+  while($self->valid_proof($self->transactions, $last_hash, $nonce)) ) {
+    $nonce += 1;
+  }
+  return $nonce;
+}
+
+sub valid_proof($self, $transactions, $last_hash, $nonce, $difficulty) {
+  $difficulty = MINING_DIFFICULTY unless $difficulty;
+  my $guess = (Dumper($transactions)+Dumper($last_hash)+Dumper($nonce));
+  my $guess_hash = sha256_hex($guess);
+  return substr($guess_hash, 0, $difficulty) eq ('0'x$difficulty) ? 1:0;
+}
+
+
 __PACKAGE__->meta->make_immutable;
 
 __END__
-
-
-    def verify_transaction_signature(self, sender_address, signature, transaction):
-        """
-        Check that the provided signature corresponds to transaction
-        signed by the public key (sender_address)
-        """
-        public_key = RSA.importKey(binascii.unhexlify(sender_address))
-        verifier = PKCS1_v1_5.new(public_key)
-        h = SHA.new(str(transaction).encode('utf8'))
-        return verifier.verify(h, binascii.unhexlify(signature))
-
-
-    def submit_transaction(self, sender_address, recipient_address, value, signature):
-        """
-        Add a transaction to transactions array if the signature verified
-        """
-        transaction = OrderedDict({'sender_address': sender_address, 
-                                    'recipient_address': recipient_address,
-                                    'value': value})
-
-        #Reward for mining a block
-        if sender_address == MINING_SENDER:
-            self.transactions.append(transaction)
-            return len(self.chain) + 1
-        #Manages transactions from wallet to another wallet
-        else:
-            transaction_verification = self.verify_transaction_signature(sender_address, signature, transaction)
-            if transaction_verification:
-                self.transactions.append(transaction)
-                return len(self.chain) + 1
-            else:
-                return False
-
-
-
-
-    def proof_of_work(self):
-        """
-        Proof of work algorithm
-        """
-        last_block = self.chain[-1]
-        last_hash = self.hash(last_block)
-
-        nonce = 0
-        while self.valid_proof(self.transactions, last_hash, nonce) is False:
-            nonce += 1
-
-        return nonce
-
-
-    def valid_proof(self, transactions, last_hash, nonce, difficulty=MINING_DIFFICULTY):
-        """
-        Check if a hash value satisfies the mining conditions. This function is used within the proof_of_work function.
-        """
-        guess = (str(transactions)+str(last_hash)+str(nonce)).encode()
-        guess_hash = hashlib.sha256(guess).hexdigest()
-        return guess_hash[:difficulty] == '0'*difficulty
-
 
     def valid_chain(self, chain):
         """

@@ -15,7 +15,6 @@ requires 'Module::Runtime', '0.016';
 requires 'namespace::autoclean', '0.28';
 requires 'Plack', '1.0047';
 requires 'signatures', '0.13';
-requires 'Data::UUID', '1.221';
 requires 'JSON::MaybeXS', '1.004000';
 
 on test => sub {
