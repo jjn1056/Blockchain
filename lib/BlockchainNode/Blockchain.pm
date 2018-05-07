@@ -8,6 +8,7 @@ use Crypt::Digest::SHA1 'sha1';
 use URL::URI;
 use BlockchainNode::Constants ':all';
 use Data::Dumper;
+use HTTP::Tiny;
 use Moose;
 
 has 'transactions' =>  (
@@ -141,73 +142,58 @@ sub valid_proof($self, $transactions, $last_hash, $nonce, $difficulty) {
   return substr($guess_hash, 0, $difficulty) eq ('0'x$difficulty) ? 1:0;
 }
 
+sub valid_chain($self, $chain) {
+  my $last_block = $chain->[0];
+  my $current_index = 1;
+  while($current_index < scalar(@{$chain})) {
+    my $block = $chain->[$current_index]; # ??? Can this be right ???
+    if($block->{previous_hash} ne $self->hash($last_block)) {
+      return undef;
+    }
+    my @transactions = @{$block->{transactions}};
+    pop @transactions;
+
+    @transactions = map { [
+      sender_address => $_->{sender_address},
+      recipient_address => $_->{recipient_address},
+      value => $_->{value},
+    ] } @transactions;
+
+    return undef unless $self->valid_proof(
+      \@transactions,
+      $block->{previous_hash},
+      $block->{nonce},
+      MINING_DIFFICULTY);
+
+    $last_block = $block;
+    $current_index++;
+  }
+  return 1;
+}
+
+sub resolve_conflicts($self) {
+  my $neighbours = $self->nodes;
+  my $new_chain;
+  my $max_length = $self->chain_length;
+
+  for my $node(@$neighbours) {
+    my $response = HTTP::Tiny->new->get("http://$node/chain");
+    if($response->{success}) {
+      my $json = $JSON->decode($response->{content});
+      my $length = $json->{length};
+      my $chain = $json->{chain};
+      if( ($length > $max_length) and ($self->valid_chain($chain)) ) {
+        $new_chain = $chain;
+        $max_length = $length;
+      }
+    }
+  }
+
+  if($new_chain) {
+    $self->chain($new_chain);
+    return 1;
+  }
+  return undef;
+}
 
 __PACKAGE__->meta->make_immutable;
-
-__END__
-
-    def valid_chain(self, chain):
-        """
-        check if a bockchain is valid
-        """
-        last_block = chain[0]
-        current_index = 1
-
-        while current_index < len(chain):
-            block = chain[current_index]
-            #print(last_block)
-            #print(block)
-            #print("\n-----------\n")
-            # Check that the hash of the block is correct
-            if block['previous_hash'] != self.hash(last_block):
-                return False
-
-            # Check that the Proof of Work is correct
-            #Delete the reward transaction
-            transactions = block['transactions'][:-1]
-            # Need to make sure that the dictionary is ordered. Otherwise we'll get a different hash
-            transaction_elements = ['sender_address', 'recipient_address', 'value']
-            transactions = [OrderedDict((k, transaction[k]) for k in transaction_elements) for transaction in transactions]
-
-            if not self.valid_proof(transactions, block['previous_hash'], block['nonce'], MINING_DIFFICULTY):
-                return False
-
-            last_block = block
-            current_index += 1
-
-        return True
-
-    def resolve_conflicts(self):
-        """
-        Resolve conflicts between blockchain's nodes
-        by replacing our chain with the longest one in the network.
-        """
-        neighbours = self.nodes
-        new_chain = None
-
-        # We're only looking for chains longer than ours
-        max_length = len(self.chain)
-
-        # Grab and verify the chains from all the nodes in our network
-        for node in neighbours:
-            print('http://' + node + '/chain')
-            response = requests.get('http://' + node + '/chain')
-
-            if response.status_code == 200:
-                length = response.json()['length']
-                chain = response.json()['chain']
-
-                # Check if the length is longer and the chain is valid
-                if length > max_length and self.valid_chain(chain):
-                    max_length = length
-                    new_chain = chain
-
-        # Replace our chain if we discovered a new, valid chain longer than ours
-        if new_chain:
-            self.chain = new_chain
-            return True
-
-        return False
-
-
-1;

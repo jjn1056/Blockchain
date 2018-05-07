@@ -105,7 +105,6 @@ sub mine($self, $c) : POST At('/nodes/register') {
     $c->res->status(400);
     $c->res->body('Error: Please supply a valid list of nodes');
   }
-
 }
 
 __PACKAGE__->meta->make_immutable;

@@ -10,12 +10,15 @@ requires 'Catalyst::View::Base::JSON', '0.003';
 requires 'Catalyst::Model::Data::MuForm', '0.001';
 requires 'Data::MuForm', '0.04';
 requires 'Import::Into', '1.002005';
+requires 'HTTP::Tiny', '0.070';
 requires 'Moose', '2.2010'; 
 requires 'Module::Runtime', '0.016';
 requires 'namespace::autoclean', '0.28';
 requires 'Plack', '1.0047';
 requires 'signatures', '0.13';
 requires 'JSON::MaybeXS', '1.004000';
+requires 'Net::SSLeay', '1.85'; # For SSL support in HTTP::Tiny
+requires 'IO::Socket::SSL', ' 2.056'; # For SSL support in HTTP::Tiny
 
 on test => sub {
   requires 'Catalyst::Test';
