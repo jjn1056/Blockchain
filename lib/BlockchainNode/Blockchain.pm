@@ -5,7 +5,7 @@ use JSON::MaybeXS;
 use Crypt::Misc 'random_v4uuid';
 use Crypt::Digest::SHA256 'sha256_hex';
 use Crypt::Digest::SHA1 'sha1';
-use URL::URI;
+use URI;
 use BlockchainNode::Constants ':all';
 use Data::Dumper;
 use HTTP::Tiny;
@@ -15,10 +15,10 @@ has 'transactions' =>  (
   traits  => ['Array'],
   is=>'ro',
   required=>1,
-  default=>sub { [] }
+  default=>sub { [] },
   handles => +{
     transactions_clear => 'clear',
-    transactions_append => 'add',
+    transactions_append => 'push',
   },
 );
 
@@ -26,9 +26,9 @@ has 'nodes' =>  (
   traits  => ['Array'],
   is=>'ro',
   required=>1,
-  default=>sub { [] }
+  default=>sub { [] },
   handles => +{
-    nodes_append => 'add'
+    nodes_append => 'push'
   },
 );
 
@@ -48,16 +48,15 @@ has 'chain' => (
   lazy => 1,
   default=>sub { shift->create_block(0, '00') },
   handles => +{
-    chain_length => 'count'
-    chain_append => 'add',
+    chain_length => 'count',
+    chain_append => 'push',
     chain_get => 'get',
   },
 );
 
-  sub chain_last { shift->chain_get(-1) }
-  *last_block \&chain_last; # alias for clarity
+sub chain_last { return shift->chain_get(-1) }
 
-sub create_block($self, $nounce, $previous_hash) {
+sub create_block($self, $nonce, $previous_hash) {
   my $block = +{
     block_number => $self->chain_length,
     timestamp => time,
@@ -87,7 +86,7 @@ sub register_node($self, $node_url) {
   # Add a new node to the list of nodes
   # I'm going to be more strict than the python version, and do
   # sanity checking on the Catalyst side.
-  my $parsed_url = URI::URL->new($node_url);
+  my $parsed_url = URI->new($node_url);
   my $host = $parsed_url->can('host') ?
     $parsed_url->host :
       die 'Invalid URL';
@@ -129,7 +128,7 @@ sub proof_of_work($self) {
   my $last_block = $self->chain_last;
   my $last_hash = $self->hash($last_block);
   my $nonce = 0;
-  while($self->valid_proof($self->transactions, $last_hash, $nonce)) ) {
+  while($self->valid_proof($self->transactions, $last_hash, $nonce)) {
     $nonce += 1;
   }
   return $nonce;

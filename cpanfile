@@ -19,6 +19,7 @@ requires 'signatures', '0.13';
 requires 'JSON::MaybeXS', '1.004000';
 requires 'Net::SSLeay', '1.85'; # For SSL support in HTTP::Tiny
 requires 'IO::Socket::SSL', ' 2.056'; # For SSL support in HTTP::Tiny
+requires 'URI', '1.74';
 
 on test => sub {
   requires 'Catalyst::Test';

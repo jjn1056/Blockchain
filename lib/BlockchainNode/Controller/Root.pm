@@ -55,22 +55,22 @@ sub get_nodes($self, $c) : GET At('/nodes/get') {
 sub consensus($self, $c) : GET At('/nodes/resolve') {
   my $blockchain = $c->model('Blockchain');
   my $replaced = $blockchain->resolve_conflicts;
-  if($replaces) {
+  if($replaced) {
     $c->view('ConflictResolution',
       'message' => 'Our chain was replaced',
-      'new_chain': $blockchain->chain,
+      'new_chain' => $blockchain->chain,
     )->http_200;
   } else {
     $c->view('ConflictResolution',
       'message' => 'Our chain is authoritative',
-      'new_chain': $blockchain->chain,
+      'new_chain' => $blockchain->chain,
     )->http_200;
   }
 }
 
 sub mine($self, $c) : GET At('/mine') {
   my $blockchain = $c->model('Blockchain');
-  my $last_block = $blockchain->last_block;
+  my $last_block = $blockchain->chain_last;
   my $nonce = $blockchain->proof_of_work;
 
   $blockchain->submit_transaction(
@@ -83,18 +83,18 @@ sub mine($self, $c) : GET At('/mine') {
   my $block = $blockchain->create_block($nonce, $previous_hash);
 
   return $c->view('Mined',
-    'message': "New Block Forged",
-    'block_number': $block->{'block_number'},
-    'transactions': $block->{'transactions'},
-    'nonce': $block->{'nonce'},
-    'previous_hash': $block->{'previous_hash'},
+    'message' => "New Block Forged",
+    'block_number' => $block->{'block_number'},
+    'transactions' => $block->{'transactions'},
+    'nonce' => $block->{'nonce'},
+    'previous_hash' => $block->{'previous_hash'},
   )->http_200;
 }
 
-sub mine($self, $c) : POST At('/nodes/register') {
+sub register_nodes($self, $c) : POST At('/nodes/register') {
   my @new_nodes = $self->model('NewNodes')->as_nodes_array;
   if(@new_nodes) {
-    foreach $node (@nodes) {
+    foreach my $node (@new_nodes) {
       $c->model('Blockchain')->register_node($node);
     }
     $c->view('NodeRegistered',
