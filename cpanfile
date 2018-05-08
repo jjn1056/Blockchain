@@ -15,6 +15,7 @@ requires 'Moose', '2.2010';
 requires 'Module::Runtime', '0.016';
 requires 'namespace::autoclean', '0.28';
 requires 'Plack', '1.0047';
+requires 'Plack::Middleware::CrossOrigin', '0.012';
 requires 'signatures', '0.13';
 requires 'JSON::MaybeXS', '1.004000';
 requires 'Net::SSLeay', '1.85'; # For SSL support in HTTP::Tiny

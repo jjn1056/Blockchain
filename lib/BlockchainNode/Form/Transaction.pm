@@ -9,7 +9,7 @@ has_field 'sender_address' => (
   type => 'Text',
   required => 1 );
 
-has_field 'sender_private_key' => (
+has_field 'recipient_address' => (
   type => 'Text',
   required => 1 );
 

@@ -27,6 +27,7 @@ sub new_transaction($self, $c) : POST At('/transactions/new') {
     }
   } else {
     # TODO this should return the form validation errors instead
+    $c->log->error("Form validation errors");
     $c->res->status(400);
     $c->res->body('Missing values');
   }
@@ -39,7 +40,11 @@ sub get_transactions($self, $c) : GET At('/transactions/get') {
 }
 
 sub full_chain($self, $c) : GET At('/chain') {
-  my $blockchain = $c->model('Blockchain')->chain;
+  my $blockchain = $c->model('Blockchain');
+
+  use Devel::Dwarn;
+  Dwarn $blockchain;
+
   return $c->view('Chain',
     chain => $blockchain->chain,
     length => $blockchain->chain_length,

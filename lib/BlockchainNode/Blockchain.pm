@@ -2,9 +2,10 @@ package BlockchainNode::Blockchain;
 
 use signatures;
 use JSON::MaybeXS;
-use Crypt::Misc 'random_v4uuid';
+use Crypt::Misc 'random_v4uuid', 'decode_b32b', 'encode_b32b';
 use Crypt::Digest::SHA256 'sha256_hex';
 use Crypt::Digest::SHA1 'sha1';
+use Crypt::PK::RSA;
 use URI;
 use BlockchainNode::Constants ':all';
 use Data::Dumper;
@@ -117,17 +118,20 @@ sub submit_transaction($self, %t) {
   my $transaction = [
     sender_address => $t{sender_address}, 
     recipient_address => $t{recipient_address}, 
-    value => $t{value}, 
-    signature => $t{signature},
+    value => $t{amount},
   ];
 
   if($t{sender_address} eq MINING_SENDER) {
     $self->transactions_append($transaction);
     return $self->chain_length +1;
   } else {
-    my $transaction_verification = $self->verify_transaction_signature($t{sender_address}, $t{signature}, $t{transaction});
+    my $transaction_verification = $self->verify_transaction_signature($t{sender_address}, $t{signature}, $transaction);
     if($transaction_verification) {
       $self->transactions_append($transaction);
+
+      use Devel::Dwarn;
+      Dwarn $self;
+
       return $self->chain_length +1;
     } else {
       return undef;
@@ -147,7 +151,7 @@ sub proof_of_work($self) {
 
 sub valid_proof($self, $transactions, $last_hash, $nonce, $difficulty) {
   $difficulty = MINING_DIFFICULTY unless $difficulty;
-  my $guess = (Dumper($transactions)+Dumper($last_hash)+Dumper($nonce));
+  my $guess = (Dumper($transactions) . $last_hash . $nonce);
   my $guess_hash = sha256_hex($guess);
   return substr($guess_hash, 0, $difficulty) eq ('0'x$difficulty) ? 1:0;
 }

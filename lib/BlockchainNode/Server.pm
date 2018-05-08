@@ -5,9 +5,15 @@ package BlockchainNode::Server;
 
 use BlockchainNode;
 use Plack::Runner;
+use Plack::Builder;
+
+my $app = builder {
+  enable 'CrossOrigin', origins => '*', methods => '*', headers => '*';
+  BlockchainNode->to_app;
+};
 
 sub run {
-  Plack::Runner->run(@_, BlockchainNode->to_app);
+  Plack::Runner->run(@_, $app);
 }
 
 return caller(1) ? 1 : run(@ARGV);
