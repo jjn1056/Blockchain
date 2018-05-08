@@ -46,7 +46,7 @@ has 'chain' => (
   is => 'ro',
   required => 1,
   lazy => 1,
-  default=>sub { shift->create_block(0, '00') },
+  builder => 'create_genesis_block',
   handles => +{
     chain_length => 'count',
     chain_append => 'push',
@@ -54,8 +54,19 @@ has 'chain' => (
   },
 );
 
-sub chain_last { return shift->chain_get(-1) }
+  sub create_genesis_block($self) {
+    my $block = +{
+      block_number => 0,
+      timestamp => time,
+      transactions => $self->transactions,
+      nonce => 0,
+      previous_hash => '00'}; 
+    $self->transactions_clear;
+    return [$block];
+  }
 
+  sub chain_last { return shift->chain_get(-1) }
+  
 sub create_block($self, $nonce, $previous_hash) {
   my $block = +{
     block_number => $self->chain_length,
