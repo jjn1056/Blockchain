@@ -38,11 +38,6 @@ sub new_transaction($self, $c) : POST At('/transactions/new') {
 
 sub get_transactions($self, $c) : GET At('/transactions/get') {
   my $transactions = $c->model('Blockchain')->transactions;
-
-  use Devel::Dwarn;
-  Dwarn $c->model('Blockchain');
-  Dwarn $transactions;
-
   return $c->view('Transactions', transactions=>$transactions)
     ->http_200
 }

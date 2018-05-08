@@ -123,12 +123,7 @@ sub submit_transaction($self, %t) {
   } else {
     my $transaction_verification = $self->verify_transaction_signature($t{sender_address}, $t{signature}, $transaction);
     if($transaction_verification) {
-
-      use Devel::Dwarn;
-      Dwarn $self;
       $self->transactions_append($transaction);
-      Dwarn $self;
-
       return $self->chain_length +1;
     } else {
       return undef;
