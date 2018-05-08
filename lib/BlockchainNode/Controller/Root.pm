@@ -18,11 +18,14 @@ sub static($self, $c, @args) : At('/static/{*}') {
 }
 
 sub new_transaction($self, $c) : POST At('/transactions/new') {
-  my $form = $_->model('Form::Transaction');
+  my $form = $c->model('Form::Transaction');
   if($form->validated) {
+    $c->log->debug("Valid Form");
     if(my $result = $c->model('Blockchain')->submit_transaction(%{$form->fif})) {
+      $c->log->debug("Valid transaction");
       return $c->view('TransactionAdded', transaction_result=>$result)->http_201;
     } else {
+      $c->log->debug("Invalid transaction");
       return $c->view('InvalidTransaction')->http_406;
     }
   } else {
@@ -35,16 +38,17 @@ sub new_transaction($self, $c) : POST At('/transactions/new') {
 
 sub get_transactions($self, $c) : GET At('/transactions/get') {
   my $transactions = $c->model('Blockchain')->transactions;
+
+  use Devel::Dwarn;
+  Dwarn $c->model('Blockchain');
+  Dwarn $transactions;
+
   return $c->view('Transactions', transactions=>$transactions)
     ->http_200
 }
 
 sub full_chain($self, $c) : GET At('/chain') {
   my $blockchain = $c->model('Blockchain');
-
-  use Devel::Dwarn;
-  Dwarn $blockchain;
-
   return $c->view('Chain',
     chain => $blockchain->chain,
     length => $blockchain->chain_length,

@@ -34,7 +34,7 @@ sub generate_transaction($self, $c) :POST At('/generate/transaction') {
     my $transaction = $c->model('Transaction', %{$transaction_form->fif});
     return $c->view('Transaction',
       signature => $transaction->sign_transaction,
-      transaction_body => +{ $transaction->transaction_body },
+      transaction_body => $transaction->transaction_body,
     )->http_ok;
   } else {
     # TODO: return errors

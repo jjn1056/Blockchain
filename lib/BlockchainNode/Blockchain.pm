@@ -8,7 +8,6 @@ use Crypt::Digest::SHA1 'sha1';
 use Crypt::PK::RSA;
 use URI;
 use BlockchainNode::Constants ':all';
-use Data::Dumper;
 use HTTP::Tiny;
 use Moose;
 
@@ -62,7 +61,6 @@ has 'chain' => (
       transactions => $self->transactions,
       nonce => 0,
       previous_hash => '00'}; 
-    $self->transactions_clear;
     return [$block];
   }
 
@@ -74,11 +72,9 @@ sub create_block($self, $nonce, $previous_hash) {
     timestamp => time,
     transactions => $self->transactions,
     nonce => $nonce,
-    previous_hash => $previous_hash}; # Should this be ordered hash...?
-
+    previous_hash => $previous_hash };
   $self->transactions_clear;
   $self->chain_append($block);
-
   return $block;
 }
 
@@ -108,18 +104,18 @@ sub register_node($self, $node_url) {
 sub verify_transaction_signature($self, $sender_address, $signature, $transaction) {
   my $sender_public_key = decode_b32b($sender_address);
   my $public_key = Crypt::PK::RSA->new(\$sender_public_key);
-  my $message = sha1(Dumper @{$transaction}); # Need to take care about not using a Hash
+  my $message = sha1($JSON->encode($transaction)); 
   return $public_key->verify_message(decode_b32b($signature), $message)
 }
 
 sub submit_transaction($self, %t) {
   # Please note this returns an arrayref because Perl hashes are not
   # going to preserve key order.
-  my $transaction = [
+  my $transaction = {
     sender_address => $t{sender_address}, 
     recipient_address => $t{recipient_address}, 
     value => $t{amount},
-  ];
+  };
 
   if($t{sender_address} eq MINING_SENDER) {
     $self->transactions_append($transaction);
@@ -127,9 +123,10 @@ sub submit_transaction($self, %t) {
   } else {
     my $transaction_verification = $self->verify_transaction_signature($t{sender_address}, $t{signature}, $transaction);
     if($transaction_verification) {
-      $self->transactions_append($transaction);
 
       use Devel::Dwarn;
+      Dwarn $self;
+      $self->transactions_append($transaction);
       Dwarn $self;
 
       return $self->chain_length +1;
@@ -151,7 +148,7 @@ sub proof_of_work($self) {
 
 sub valid_proof($self, $transactions, $last_hash, $nonce, $difficulty) {
   $difficulty = MINING_DIFFICULTY unless $difficulty;
-  my $guess = (Dumper($transactions) . $last_hash . $nonce);
+  my $guess = ($JSON->encode($transactions) . $last_hash . $nonce);
   my $guess_hash = sha256_hex($guess);
   return substr($guess_hash, 0, $difficulty) eq ('0'x$difficulty) ? 1:0;
 }
@@ -167,11 +164,11 @@ sub valid_chain($self, $chain) {
     my @transactions = @{$block->{transactions}};
     pop @transactions;
 
-    @transactions = map { [
+    @transactions = map { {
       sender_address => $_->{sender_address},
       recipient_address => $_->{recipient_address},
       value => $_->{value},
-    ] } @transactions;
+    } } @transactions;
 
     return undef unless $self->valid_proof(
       \@transactions,
