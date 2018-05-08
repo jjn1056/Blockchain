@@ -6,7 +6,6 @@ LOCALDIR := $(PWD)/local/
 CPANMURL := https://cpanmin.us/
 LOCALPERL := perl 
 RUNTESTS := --notest 
-PERLJOBS := 9
 help::
 	@echo ""
 	@echo "==> Setup and Dependency Management"
@@ -29,16 +28,6 @@ locallib::
 	  App::cpanminus \
 	  App::local::lib::helper 
 
-buildexec::
-	@echo "Creating exec program"
-	@echo '#!/usr/bin/env bash' > $(LOCALEXEC)
-	@echo 'eval $$(perl -I$(LOCALDIR)lib/perl5 -Mlocal::lib=--deactivate-all)' >> $(LOCALEXEC)
-	@echo 'source $(LOCALDIR)bin/localenv-bashrc' >> $(LOCALEXEC)
-	@echo 'PATH=$(LOCALDIR)bin:$(PERLINSTALLTARGETDIR)/bin:$$PATH' >> $(LOCALEXEC)
-	@echo 'export PATH' >> $(LOCALEXEC)
-	@echo 'exec  "$$@"' >> $(LOCALEXEC)
-	@chmod 755 $(LOCALEXEC)
-
 installdeps::
 	@echo "Installing application dependencies"
 	$(LOCALEXEC) cpanm -v $(RUNTESTS) --installdeps .
@@ -53,4 +42,4 @@ client_server::
 	perl -I$(LOCALDIR)perl5 -Ilib lib/BlockchainClient/Server.pm --port 3000
 
 node_server::
-	$(LOCALEXEC) perl -I$(LOCALDIR)perl5 -Ilib lib/BlockchainNode/Server.pm --port 5000
+	perl -I$(LOCALDIR)perl5 -Ilib lib/BlockchainNode/Server.pm --port 5000
